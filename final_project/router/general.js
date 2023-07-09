@@ -7,7 +7,6 @@ const public_users = express.Router();
 
 
 public_users.post("/register", (req,res) => {
-  //Write your code here
   const username = req.body.username;
   const password = req.body.password;
   
@@ -23,148 +22,91 @@ public_users.post("/register", (req,res) => {
 });
 
 // Get the book list available in the shop
-public_users.get('/', function (req, res) {
-    //res.send(JSON.stringify(books, null, 4));
-    allBooks()
-      .then(function (booksData) {
-        res.send(JSON.stringify(booksData, null, 4));
-      })
-      .catch(function (error) {
-        console.error(error);
-        res.status(404).json({ message: 'Cannot find books data.' });
-      });
-  });
-  
-  function allBooks() {
-    return axios
-      .get('/')
-      .then(function (response) {
-        return response.data;
-      })
-      .catch(function (error) {
-        throw error;
-      });
-  }
+public_users.get('/', async function (req, res) {
+    try {
+      const response = await axios.get('/');
+      const allBooksData = response.data;
+      res.send(JSON.stringify(allBooksData, null, 4));
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'No books have been found.' });
+    }
+});
 
 // Get book details based on ISBN
-public_users.get('/isbn/:isbn', function (req, res) {
-    const isbn = req.params.isbn;
+public_users.get('/isbn/:isbn', async function (req, res) {
+    try {
+      const isbn = req.params.isbn;
+      const book = await getBookByISBN(isbn);
   
-    getByISBN(isbn)
-      .then(function (book) {
-        if (book) {
-          res.send(book);
-        } else {
-          res.status(404).json({ message: 'Book not found.' });
-        }
-      })
-      .catch(function (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Cannot find details.' });
-      });
+      if (book) {
+        res.send(book);
+      } else {
+        res.status(404).json({ message: 'Book not found' });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'No books available.' });
+    }
   });
   
-  function getByISBN(isbn) {
-    return axios
-      .get(`/isbn/${isbn}`)
-      .then(function (response) {
-        return response.data;
-      })
-      .catch(function (error) {
-        if (error.response && error.response.status === 404) {
-          return null; // Book not found
-        }
-        throw error;
-      });
-}
+  async function getBookByISBN(isbn) {
+    try {
+      const response = await axios.get(`/isbn/${isbn}`);
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.status === 404) {
+        return null; // Book not found
+      }
+      throw new Error('No books have been found.');
+    }
+};
   
 // Get book details based on author
-public_users.get('/author/:author', function (req, res) {
-    const nameOfAuthor = req.params.author;
+public_users.get('/author/:author', async function (req, res) {
+    try {
+      const nameOfAuthor = req.params.author;
+      const response = await axios.get('/author/:author');
+      const books = response.data;
   
-    bookByAuthor(nameOfAuthor)
-      .then(function (writtenByAuthor) {
-        if (writtenBy.length === 0) {
-          return res.status(404).json({ message: 'No books found.' });
-        }
+      const writtenByAuthor = books.filter(book => book.author === nameOfAuthor);
   
-        res.status(200).json(writtenBy);
-      })
-      .catch(function (error) {
-        console.error(error);
-        res.status(500).json({ message: 'No such books available.' });
-      });
-  });
+      if (writtenByAuthor.length === 0) {
+        return res.status(404).json({ message: 'No books found.' });
+      }
   
-  function bookByAuthor(author) {
-    return axios
-      .get('/author?author=' + author)
-      .then(function (response) {
-        return response.data;
-      })
-      .catch(function (error) {
-        throw error;
-      });
-  }
+      res.status(200).json(writtenByAuthor);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'No books have been found by this author.' });
+    }
+});
 
 // Get all books based on title
-public_users.get('/title/:title', function (req, res) {
-    const titleName = req.params.title;
+public_users.get('/title/:title', async function (req, res) {
+    try {
+      const titleName = req.params.title;
+      const response = await axios.get('/title/:title');
+      const books = response.data;
   
-    BookByTitle(titleName)
-      .then(function (bookWithTitle) {
-        if (bookWithTitle.length === 0) {
-          return res.status(404).json({ message: 'No books found.' });
-        }
+      const booksWithTitle = books.filter(book => book.title === titleName);
   
-        res.status(200).json(booksWithTitle);
-      })
-      .catch(function (error) {
-        console.error(error);
-        res.status(500).json({ message: 'No such books available' });
-      });
-  });
+      if (booksWithTitle.length === 0) {
+        return res.status(404).json({ message: 'No books found.' });
+      }
   
-  function BookByTitle(title) {
-    return axios
-      .get('/title?title=' + title)
-      .then(function (response) {
-        return response.data;
-      })
-      .catch(function (error) {
-        throw error;
-      });
-  }
+      res.status(200).json(booksWithTitle);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'No books have been found by this title.' });
+    }
+});
 
 //  Get book review
 public_users.get('/review/:isbn', function (req, res) {
     const isbn = req.params.isbn;
-  
-    getByISBN(isbn)
-      .then(function (book) {
-        if (book) {
-          res.status(200).json(book);
-        } else {
-          res.status(404).json({ message: 'This book is not available.' });
-        }
-      })
-      .catch(function (error) {
-        res.status(500).json({ message: 'No reviews available' });
-      });
-  });
-  
-  function getByISBN(isbn) {
-    return axios
-      .get(`/review/${isbn}`)
-      .then(function (response) {
-        return response.data;
-      })
-      .catch(function (error) {
-        if (error.response && error.response.status === 404) {
-          return null; // Book not found
-        }
-        throw error;
-      });
-}
+  if(isbn === isbn){
+    res.status(200).json(books[isbn])};
+});
 
 module.exports.general = public_users;
